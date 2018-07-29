@@ -117,21 +117,21 @@ else {
 	
 if ($opt{W}) {
     # 60 is the limit for me because of the RAM...
-    $width = check_int($opt{W}, 1, 60, "invalid range for window width");
+    $width = check_int($opt{W}, 1, 6000, "invalid range for window width");
 }
 else {
     $width = 30;
 }
 
 if ($opt{H}) {
-    $height = check_int($opt{H}, 1, 60, "invalid range for window height");
+    $height = check_int($opt{H}, 1, 6000, "invalid range for window height");
 }
 else {
     $height = 30;
 }
 
 if ($opt{i}) {
-    $include_max_depth = check_int($opt{i}, 0, 100, "invalid range for include depth");
+    $include_max_depth = check_int($opt{i}, 0, 1000, "invalid range for include depth");
 }
 else {
     $include_max_depth = 10;
@@ -349,7 +349,8 @@ sub build_graph {
 end:
 print "effective node number : $total_nodes\n";
 print "pass 3 : Displaying graph...\n";
-$g->as_gif($outfile);
+
+$g->as_svg($outfile);
 system("$viewer $outfile");
 
 1;
