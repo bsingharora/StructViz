@@ -194,7 +194,7 @@ sub file_get_structs {
     $content =~ s/\n\t*\n/\n/gs;
     # $content =~ s/\#(define|ifdef|endif|if|error|elif)(.*?)\n//ges;
     $content =~ s/\#error.*?\n//ges;
-    $content =~ s/enum {(.*?)}//ges;
+    $content =~ s/enum \{(.*?)}//ges;
     
     # detect struct definition
     while ($content =~ m/struct\s+($ident)\s*\n*({.*?}\s*(__attribute__ \S+)*;)/gs) {
