@@ -197,15 +197,43 @@ sub file_get_structs {
     $content =~ s/enum \{(.*?)}//ges;
     
     # detect struct definition
-    while ($content =~ m/struct\s+($ident)\s*\n*({.*?}\s*(__attribute__ \S+)*;)/gs) {
+    while ($content =~ m/struct\s+($ident)\s*\n*({.*?}\s*(__attribute__.*?)*?;)/gs) {
 	my $struct_name = $1;
 	my $struct_content = $2;
-	# print "** $struct_name **\n";
-	# print $struct_content . "\n";	
+	#print "** $struct_name **\n";
+	#print $struct_content . "\n";	
 	if (not exists $structs{$struct_name}) {
 	    # print "$struct_name from $file stored.\n";
 	    my @triplet = ($struct_content, -1, $file);
 	    $structs{$struct_name} = \@triplet;
+	}
+	else {
+	    true;
+	    # print "file_get_structs: $struct_name from $file seems to be alreay defined in $structs{$struct_name}[2].\n";
+	}
+    }
+    while ($content =~ m/typedef\s+struct\s*({.*?})\s*($ident)\s*(__attribute__.*?)*?;/gs) {
+	my $struct_name = $2;
+	my $struct_content = $1;
+	#print "** $struct_name **\n";
+	#print $struct_content . "\n";
+	if (not exists $structs{$struct_name}) {
+	    # print "$struct_name from $file stored.\n";
+	    my @triplet = ($struct_content, -1, $file);
+	    $structs{$struct_name} = \@triplet;
+	}
+	else {
+	    true;
+	    # print "file_get_structs: $struct_name from $file seems to be alreay defined in $structs{$struct_name}[2].\n";
+	}
+    }
+    while ($content =~ m/#define\s+(.*?)\s+(.*?)\s*\n/gs) {
+	my $struct_name = $2;
+	my $new_name = $1;
+	#print "** $struct_name  $new_name **\n";
+	if (exists $structs{$struct_name}) {
+	    my @triplet = ($structs{$struct_name}[0], -1, $file);
+	    $structs{$new_name} = \@triplet;
 	}
 	else {
 	    true;
