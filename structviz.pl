@@ -42,6 +42,7 @@ my $ident = '\~?_*[a-zA-Z][a-zA-Z0-9_]*';
 tie my %includes, "Tie::IxHash";
 tie my %tmp_includes, "Tie::IxHash";
 tie my %structs, "Tie::IxHash";
+my %structs_copy = %{$structs};
 
 sub usage {    
   print << "EOF";
@@ -277,8 +278,17 @@ sub file_get_structs {
   sub struct_get_structs {
     my $code = shift;
     my @struct_idents;
-    while ($code =~ m/\n\s*($ident).*?;/gs) {
-      push @struct_idents, $1;
+    # print $code;
+    #print $s2."\n";
+    foreach my $s (keys %structs_copy) {
+      # print "s is".$s."\n";
+      foreach my $s2 ($s) {
+        # print $2."---\n";
+        while ($code =~ m/.*($s2).*?;/gs) {
+          push @struct_idents, $1;
+          # print $1."\t";
+        }
+      }
     }
     return @struct_idents;
   }
@@ -338,11 +348,16 @@ sub file_get_structs {
   print "pass 2 : Building graph dependencies...\n";
   my $g = GraphViz->new(node => {shape => 'box'}, rankdir => true, width => $width, height => $height);
 
+  %structs_copy = %structs;
+  #print "S".%structs, "SC".%structs_copy;
   while (($k,$v) = each(%structs)) {
     # for structs on the top-level
+    #print "$k".$v."\n";
     if ($structs{$k}[2] eq $entry_file) {	
       $tmp_depth = 0;
+      #print "Building graph for".$k."---\n";
       $ret = build_graph($k); # let's go for a ride	
+      #print "Built graph for".$v."---\n";
     }
   }
 
@@ -356,7 +371,7 @@ sub file_get_structs {
     $tmp_depth++;
     while ($queue_len >= 0) {
       my $tmp_edge = pop(@queue);
-      # print "dequeueing and marking $tmp_edge\n";
+      #print "dequeueing and marking $tmp_edge\n";
 
       my $label = $structs{$tmp_edge}[0];
       $label =~ s/\n/\\r/g;
@@ -370,6 +385,7 @@ sub file_get_structs {
 
       my @sons = struct_get_structs($structs{$tmp_edge}[0]);
       $tmp_depth++;
+      #print "Sons".@sons."\n\n";
       # if ($tmp_depth >= $heuristic && not grep(/$structs{$tmp_edge}[2]/, @includes_manual)) {
       if ($tmp_depth >= $heuristic) {
         return 1;
@@ -386,6 +402,7 @@ sub file_get_structs {
         }
       }
       $queue_len = $#queue;
+      # print "QUEUE_LEN".$queue_len;
     }
   }
   # stats
