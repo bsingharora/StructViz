@@ -51,8 +51,8 @@ usage :
 \t-h this help
 \t-e entry_file (default: "linux/ip.h")
 \tThe graph will take its roots on the structs of that file
-\t-o outfile (default: "/tmp/graph.gif")
-\tthe gif output file
+\t-o outfile (default: "/tmp/graph.svg")
+\tthe svg output file
 \t-W width (default: 20)
 \t-H height (default: 20)
 \tdimensions of the outfile in regard that 10 stands for ~1000px
@@ -66,7 +66,7 @@ usage :
 \t-a filelist (e.g "linux/ip.h linux/if_arp.h")
 For special cases were structs definitions are missing
 
-\texample : $0 -e "linux/netlink.h" -o "netlink.gif" -W 30 -H 30
+\texample : $0 -e "linux/netlink.h" -o "netlink.svg" -W 30 -H 30
 
 EOF
 exit;
@@ -112,7 +112,7 @@ if ($opt{o}) {
   $outfile = $opt{o};
 }
 else {
-  $outfile = "/tmp/graph.gif";
+  $outfile = "/tmp/graph.svg";
 }
 
 if ($opt{W}) {
