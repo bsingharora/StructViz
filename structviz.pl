@@ -44,7 +44,7 @@ tie my %tmp_includes, "Tie::IxHash";
 tie my %structs, "Tie::IxHash";
 
 sub usage {    
-    print << "EOF";
+  print << "EOF";
 StructViz (C) 2006 Mathieu GELI <mathieu.geli@gmail.com>
 
 usage :
@@ -79,76 +79,76 @@ if (keys %opt == 0 && $#ARGV != -1) { usage(); } # handle unknow option
 usage() if $opt{h};
 
 if ($opt{a}) {
-    @includes_manual = split(" ", $opt{a});
+  @includes_manual = split(" ", $opt{a});
 }
 
 if ($opt{r}) {
-    if (-e $opt{r}) {
-	$rootinc = $opt{r};
-    }
-    else {
-	print "Hey buddy, you at least need the kernel includes files.\n";
-	exit;
-    }
+  if (-e $opt{r}) {
+    $rootinc = $opt{r};
+  }
+  else {
+    print "Hey buddy, you at least need the kernel includes files.\n";
+    exit;
+  }
 }
 else {
-    $rootinc="/usr/src/linux/include";
+  $rootinc="/usr/src/linux/include";
 }
 
 if ($opt{e}) {
-    if (-e "$rootinc/$opt{e}") {
-	$entry_file = $opt{e};
-    }
-    else {
-	print "I cannot find file $rootinc/$opt{e}\n";
-	exit;
-    }
+  if (-e "$rootinc/$opt{e}") {
+    $entry_file = $opt{e};
+  }
+  else {
+    print "I cannot find file $rootinc/$opt{e}\n";
+    exit;
+  }
 }
 else {
-    $entry_file = "linux/ip.h";    
+  $entry_file = "linux/ip.h";
 }
 
 if ($opt{o}) {
-    $outfile = $opt{o};
+  $outfile = $opt{o};
 }
 else {
-    $outfile = "/tmp/graph.gif";
+  $outfile = "/tmp/graph.gif";
 }
-	
+
 if ($opt{W}) {
-    # 60 is the limit for me because of the RAM...
-    $width = check_int($opt{W}, 1, 6000, "invalid range for window width");
+  # 60 is the limit for me because of the RAM...
+  $width = check_int($opt{W}, 1, 6000, "invalid range for window width");
 }
 else {
-    $width = 30;
+  $width = 30;
 }
 
 if ($opt{H}) {
-    $height = check_int($opt{H}, 1, 6000, "invalid range for window height");
+  $height = check_int($opt{H}, 1, 6000, "invalid range for window height");
 }
 else {
-    $height = 30;
+  $height = 30;
 }
 
 if ($opt{i}) {
-    $include_max_depth = check_int($opt{i}, 0, 1000, "invalid range for include depth");
+  $include_max_depth = check_int($opt{i}, 0, 1000, "invalid range for include depth");
 }
 else {
-    $include_max_depth = 10;
+  $include_max_depth = 10;
 }
 
 if ($opt{t}) {
-    $tree_max_depth = check_int($opt{t}, 1, 30, "invalid range for tree depth");
+  $tree_max_depth = check_int($opt{t}, 1, 30, "invalid range for tree depth");
 }
 else {
-    $tree_max_depth = 5;
+  $tree_max_depth = 5;
 }
 
 if ($opt{v}) {
-    $viewer = $opt{v};
+  $viewer = $opt{v};
 }
 else {
-    $viewer = "ee";
+  $viewer = "ee";
 }
 
 $heuristic = int(($tree_max_depth+1)*($tree_max_depth)/2)+1;
@@ -168,82 +168,97 @@ options summary
 EOF
 
 sub check_int {
-    my $int = shift;
-    my $min = shift;
-    my $max = shift;
-    my $errmsg = shift;
+  my $int = shift;
+  my $min = shift;
+  my $max = shift;
+  my $errmsg = shift;
 
-    if ($int >= $min and $int <= $max) {
-	return $int; #  awkward, references ?
-    }
-    else {
-	print $errmsg . "\n";
-	exit;
-    }
+  if ($int >= $min and $int <= $max) {
+    return $int; #  awkward, references ?
+  }
+  else {
+    print $errmsg . "\n";
+    exit;
+  }
 }
 
 sub file_get_structs {
-    my $file = shift;
-    open(FH, "$rootinc/$file");
-    $_ = $/; undef($/);
-    my $content = <FH>;
-    $/ = $_;
-    
-    # some cleaning up
-    $content =~ s/\/\*(.*?)\*\///ges;
-    $content =~ s/\n\t*\n/\n/gs;
-    # $content =~ s/\#(define|ifdef|endif|if|error|elif)(.*?)\n//ges;
-    $content =~ s/\#error.*?\n//ges;
-    $content =~ s/enum \{(.*?)}//ges;
-    
-    # detect struct definition
-    while ($content =~ m/struct\s+($ident)\s*\n*({.*?}\s*(__attribute__.*?)*?;)/gs) {
-	my $struct_name = $1;
-	my $struct_content = $2;
-	#print "** $struct_name **\n";
-	#print $struct_content . "\n";	
-	if (not exists $structs{$struct_name}) {
-	    # print "$struct_name from $file stored.\n";
-	    my @triplet = ($struct_content, -1, $file);
-	    $structs{$struct_name} = \@triplet;
-	}
-	else {
-	    true;
-	    # print "file_get_structs: $struct_name from $file seems to be alreay defined in $structs{$struct_name}[2].\n";
-	}
-    }
-    while ($content =~ m/typedef\s+struct\s*({.*?})\s*($ident)\s*(__attribute__.*?)*?;/gs) {
-	my $struct_name = $2;
-	my $struct_content = $1;
-	#print "** $struct_name **\n";
-	#print $struct_content . "\n";
-	if (not exists $structs{$struct_name}) {
-	    # print "$struct_name from $file stored.\n";
-	    my @triplet = ($struct_content, -1, $file);
-	    $structs{$struct_name} = \@triplet;
-	}
-	else {
-	    true;
-	    # print "file_get_structs: $struct_name from $file seems to be alreay defined in $structs{$struct_name}[2].\n";
-	}
-    }
-    while ($content =~ m/#define\s+(.*?)\s+(.*?)\s*\n/gs) {
-	my $struct_name = $2;
-	my $new_name = $1;
-	#print "** $struct_name  $new_name **\n";
-	if (exists $structs{$struct_name}) {
-	    my @triplet = ($structs{$struct_name}[0], -1, $file);
-	    $structs{$new_name} = \@triplet;
-	}
-	else {
-	    true;
-	    # print "file_get_structs: $struct_name from $file seems to be alreay defined in $structs{$struct_name}[2].\n";
-	}
-    }
-    close FH;
-}
+  my $file = shift;
+  open(FH, "$rootinc/$file");
+  $_ = $/; undef($/);
+  my $content = <FH>;
+  $/ = $_;
 
-sub file_get_includes {
+  # some cleaning up
+  $content =~ s/\/\*(.*?)\*\///ges;
+  $content =~ s/\n\t*\n/\n/gs;
+  # $content =~ s/\#(define|ifdef|endif|if|error|elif)(.*?)\n//ges;
+  $content =~ s/\#error.*?\n//ges;
+  $content =~ s/enum \{(.*?)}//ges;
+
+  # detect struct definition
+  while ($content =~ m/struct\s+($ident)\s*\n*({.*?}\s*(__attribute__.*?)*?;)/gs) {
+    my $struct_name = $1;
+    my $struct_content = $2;
+    #print "** $struct_name **\n";
+    #print $struct_content . "\n";
+    if (not exists $structs{$struct_name}) {
+      # print "$struct_name from $file stored.\n";
+      my @triplet = ($struct_content, -1, $file);
+      $structs{$struct_name} = \@triplet;
+    }
+    else {
+      true;
+      # print "file_get_structs: $struct_name from $file seems to be alreay defined in $structs{$struct_name}[2].\n";
+    }
+  }
+  while ($content =~ m/typedef\s+struct\s*({.*?})\s*($ident)\s*(__attribute__.*?)*?;/gs) {
+    my $struct_name = $2;
+    my $struct_content = $1;
+    #print "** $struct_name **\n";
+    #print $struct_content . "\n";
+    if (not exists $structs{$struct_name}) {
+      # print "$struct_name from $file stored.\n";
+      my @triplet = ($struct_content, -1, $file);
+      $structs{$struct_name} = \@triplet;
+    }
+    else {
+      true;
+      # print "file_get_structs: $struct_name from $file seems to be alreay defined in $structs{$struct_name}[2].\n";
+    }
+  }
+  while ($content =~ m/#define\s+(.*?)\s+(.*?)\s*\n/gs) {
+    my $struct_name = $2;
+    my $new_name = $1;
+    #print "** $struct_name  $new_name **\n";
+    if (exists $structs{$struct_name}) {
+      my @triplet = ($structs{$struct_name}[0], -1, $file);
+      $structs{$new_name} = \@triplet;
+    }
+    else {
+      true;
+      # print "file_get_structs: $struct_name from $file seems to be alreay defined in $structs{$struct_name}[2].\n";
+    }
+  }
+  while ($content =~ m/typedef\s+($ident)\s*($ident)*?;/gs) {
+    my $struct_name = $2;
+    my $struct_content = $structs{$1}[0];
+    # print "** $struct_name **\n";
+    #print $struct_content . "\n";
+    if (not exists $structs{$struct_name}) {
+      # print "$struct_name from $file stored.\n";
+      my @triplet = ($struct_content, -1, $file);
+      $structs{$struct_name} = \@triplet;
+    }
+    else {
+      true;
+      # print "file_get_structs: $struct_name from $file seems to be alreay defined in $structs{$struct_name}[2].\n";
+    }
+  }
+    close FH;
+  }
+
+  sub file_get_includes {
     my $file = shift;
     my $depth = shift;
     my %local_includes;
@@ -252,87 +267,87 @@ sub file_get_includes {
     my $content = <FH>;
     $/ = $_;
     while ($content =~ m/\#include\s+(<|\")(\S+)(>|\")/gs) {
-	# print $2 . "\n";
-	$local_includes{$2} = $depth + 1;
+      # print $2 . "\n";
+      $local_includes{$2} = $depth + 1;
     }
     close FH;
     return %local_includes;
-}
+  }
 
-sub struct_get_structs {
+  sub struct_get_structs {
     my $code = shift;
     my @struct_idents;
-    while ($code =~ m/\n\s+struct\s+($ident)/gs) {
-	push @struct_idents, $1;
+    while ($code =~ m/\n\s*($ident).*?;/gs) {
+      push @struct_idents, $1;
     }
     return @struct_idents;
-}
+  }
 
-# first pass : store all included files and get their structs definitons
-print "pass 1 : Parsing sources...\n";
-file_get_structs($entry_file);
-if ($includes{$entry_file} >= $include_max_depth) {
+  # first pass : store all included files and get their structs definitons
+  print "pass 1 : Parsing sources...\n";
+  file_get_structs($entry_file);
+  if ($includes{$entry_file} >= $include_max_depth) {
     print "max depth reached. jumping to pass2.\n";
     goto pass2;
-}
+  }
 
-%tmp_includes = file_get_includes($entry_file, 0);
+  %tmp_includes = file_get_includes($entry_file, 0);
 
-# FIXME : those files are not scanned so we add them manually
-foreach (@includes_manual) {
+  # FIXME : those files are not scanned so we add them manually
+  foreach (@includes_manual) {
     $tmp_includes{$_} = 0; # depth 0 means we simulate the #include
-                           # exist in $entry_file
-}
-foreach $file (keys %tmp_includes) {
+    # exist in $entry_file
+  }
+  foreach $file (keys %tmp_includes) {
     if (not exists $includes{$file}) {
-	# print "pushing $file, \t\tdepth : $tmp_includes{$file}\n";
-	$includes{$file} = $tmp_includes{$file};
-	file_get_structs($file);
+      # print "pushing $file, \t\tdepth : $tmp_includes{$file}\n";
+      $includes{$file} = $tmp_includes{$file};
+      file_get_structs($file);
     }
-}
+  }
 
-@_includes = keys %includes;   # hack to have a loop on a growing hash
-foreach(@_includes) {          # the problem was : looping with (keys %hash) was using
+  @_includes = keys %includes;   # hack to have a loop on a growing hash
+  foreach(@_includes) {          # the problem was : looping with (keys %hash) was using
     my $cur_file = $_;         # a past snapshot of the keys, not the growing ones
     # print "cur file : $cur_file\n";
     # print "*parsing* $cur_file, current depth: $includes{$cur_file}\n";
     if ($includes{$cur_file} >= $include_max_depth) {
-	print "max depth reached. jumping to pass2.\n";
-	goto pass2;
+      print "max depth reached. jumping to pass2.\n";
+      goto pass2;
     }
 
     %tmp_includes = file_get_includes($cur_file, $includes{$cur_file});
     foreach $file (keys %tmp_includes) {
-	# looking if the file is already standing in the global array and with a bigger depth counter
-	if (not exists $includes{$file} || $includes{$file} > $includes{$cur_file}+1) {
-	    # print "pushing $file \t\tdepth :\t$tmp_includes{$file}\n";
-	    file_get_structs($file);
-	    # printf "recensed include files : %d\n", $#includes;
-	    $includes{$file} = $tmp_includes{$file};
-	    @_includes = keys %includes; # update the array we are looping on
-	}
+      # looking if the file is already standing in the global array and with a bigger depth counter
+      if (not exists $includes{$file} || $includes{$file} > $includes{$cur_file}+1) {
+        # print "pushing $file \t\tdepth :\t$tmp_includes{$file}\n";
+        file_get_structs($file);
+        # printf "recensed include files : %d\n", $#includes;
+        $includes{$file} = $tmp_includes{$file};
+        @_includes = keys %includes; # update the array we are looping on
+      }
     }
-}
+  }
 
-# second pass : loop over the structs and build the dep graph
-pass2:
-# stats
-print "gathered " . (keys %includes). " include files.\n";
-print "gathered " . (keys %structs) . " structure defintions.\n";
+  # second pass : loop over the structs and build the dep graph
+  pass2:
+  # stats
+  print "gathered " . (keys %includes). " include files.\n";
+  print "gathered " . (keys %structs) . " structure defintions.\n";
 
-print "pass 2 : Building graph dependencies...\n";
-my $g = GraphViz->new(node => {shape => 'box'}, rankdir => true, width => $width, height => $height);
+  print "pass 2 : Building graph dependencies...\n";
+  my $g = GraphViz->new(node => {shape => 'box'}, rankdir => true, width => $width, height => $height);
 
-while (($k,$v) = each(%structs)) {
+  while (($k,$v) = each(%structs)) {
     # for structs on the top-level
     if ($structs{$k}[2] eq $entry_file) {	
-	$tmp_depth = 0;
-	$ret = build_graph($k); # let's go for a ride	
+      $tmp_depth = 0;
+      $ret = build_graph($k); # let's go for a ride	
     }
-}
+  }
 
-# breadth-first search algorithm
-sub build_graph {
+  # breadth-first search algorithm
+  sub build_graph {
     my @queue;
     my $edge = shift;
     # print "* enqueueing $edge\n";
@@ -340,50 +355,51 @@ sub build_graph {
     $queue_len = $#queue;
     $tmp_depth++;
     while ($queue_len >= 0) {
-	my $tmp_edge = pop(@queue);
-	# print "dequeueing and marking $tmp_edge\n";
+      my $tmp_edge = pop(@queue);
+      # print "dequeueing and marking $tmp_edge\n";
 
-	my $label = $structs{$tmp_edge}[0];
-	$label =~ s/\n/\\r/g;
-	# $label =~ s/({|})//g;
-	$total_nodes++;	
-	$g->add_node($tmp_edge, label => "$tmp_edge\\l" . $label, width => 2.5);
+      my $label = $structs{$tmp_edge}[0];
+      $label =~ s/\n/\\r/g;
+      # $label =~ s/({|})//g;
+      $total_nodes++;
+      $g->add_node($tmp_edge, label => "$tmp_edge\\l" . $label, width => 2.5);
 
-	$structs{$tmp_edge}[1] = 0; # we mark the edge
-	# create the sons list
-	# limit the depth for the search
-	
-	my @sons = struct_get_structs($structs{$tmp_edge}[0]);
-	$tmp_depth++;
-	if ($tmp_depth >= $heuristic && not grep(/$structs{$tmp_edge}[2]/, @includes_manual)) {
-	    return 1;
-	}
-	foreach(@sons) {
-	    my $son = $_;
-	    if (exists $structs{$son} && $structs{$son}[1] == -1) { # if not marked enqueue
-		# print "enqueuing $son\n";
-		$g->add_edge($tmp_edge => $son);
-		unshift(@queue, $son);
-	    }
-	    elsif ($struct{$son}[1] == 0 && not $son eq $tmp_edge) {
-		$g->add_edge($tmp_edge => $son);
-	    }
-	}
-	$queue_len = $#queue;
+      $structs{$tmp_edge}[1] = 0; # we mark the edge
+      # create the sons list
+      # limit the depth for the search
+
+      my @sons = struct_get_structs($structs{$tmp_edge}[0]);
+      $tmp_depth++;
+      # if ($tmp_depth >= $heuristic && not grep(/$structs{$tmp_edge}[2]/, @includes_manual)) {
+      if ($tmp_depth >= $heuristic) {
+        return 1;
+      }
+      foreach(@sons) {
+        my $son = $_;
+        if (exists $structs{$son} && $structs{$son}[1] == -1) { # if not marked enqueue
+          # print "enqueuing $son\n";
+          $g->add_edge($tmp_edge => $son);
+          unshift(@queue, $son);
+        }
+        elsif ($struct{$son}[1] == 0 && not $son eq $tmp_edge) {
+          $g->add_edge($tmp_edge => $son);
+        }
+      }
+      $queue_len = $#queue;
     }
-}
-# stats
+  }
+  # stats
 
-end:
-print "effective node number : $total_nodes\n";
-print "pass 3 : Displaying graph...\n";
+  end:
+  print "effective node number : $total_nodes\n";
+  print "pass 3 : Displaying graph...\n";
 
-$g->as_svg($outfile);
-system("$viewer $outfile");
+  $g->as_svg($outfile);
+  system("$viewer $outfile");
 
-1;
+  1;
 
-__END__
+  __END__
 
 =head1 NAME
 
