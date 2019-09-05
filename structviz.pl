@@ -24,6 +24,7 @@
 use Tie::IxHash; # for sorted-by-add-time hashes
 use GraphViz;    # for bitmap graph generation
 use Getopt::Std; # command-line parsing
+use Regexp::Common qw /balanced/;
 
 my $rootinc;
 my $entry_file;
@@ -198,7 +199,7 @@ sub file_get_structs {
   $content =~ s/enum \{(.*?)}//ges;
 
   # detect struct definition
-  while ($content =~ m/struct\s+($ident)\s*\n*({.*?}\s*(__attribute__.*?)*?;)/gs) {
+  while ($content =~ m/struct\s+($ident)\s*$RE{balanced}{-parens=>'{}'}.*?;/gs) {
     my $struct_name = $1;
     my $struct_content = $2;
     #print "** $struct_name **\n";
@@ -213,7 +214,7 @@ sub file_get_structs {
       # print "file_get_structs: $struct_name from $file seems to be alreay defined in $structs{$struct_name}[2].\n";
     }
   }
-  while ($content =~ m/typedef\s+struct\s*({.*?})\s*($ident)\s*(__attribute__.*?)*?;/gs) {
+  while ($content =~ m/typedef\s+struct\s*$RE{balanced}{-parens=>'{}'}\s*($ident)\s*((__attribute__.*?)|(__cache*))*?;/gs) {
     my $struct_name = $2;
     my $struct_content = $1;
     #print "** $struct_name **\n";
