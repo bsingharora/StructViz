@@ -45,9 +45,10 @@ tie my %tmp_includes, "Tie::IxHash";
 tie my %structs, "Tie::IxHash";
 my %structs_copy = %{$structs};
 
-sub usage {    
+sub usage {
   print << "EOF";
 StructViz (C) 2006 Mathieu GELI <mathieu.geli@gmail.com>
+StructViz (C) 2018-2020 Balbir Singh <bsingharora@gmail.com>
 
 usage :
 \t-h this help
@@ -66,6 +67,7 @@ usage :
 \tthe maximum depth of the tree formed by chained structs
 \t-v viewer (default: ee from Electric Eyes pacakge)
 \t-a filelist (e.g "linux/ip.h linux/if_arp.h")
+\t-E list of entry files, useful for subsystems
 For special cases were structs definitions are missing
 
 \texample : $0 -e "linux/netlink.h" -o "netlink.svg" -W 30 -H 30
@@ -76,12 +78,17 @@ exit;
 
 # let's do some options parsing
 %opt=();
-getopts("he:o:W:H:r:i:t:v:a:", \%opt);
+getopts("he:o:W:H:r:i:t:v:a:E:", \%opt);
 if (keys %opt == 0 && $#ARGV != -1) { usage(); } # handle unknow option
 usage() if $opt{h};
 
 if ($opt{a}) {
   @includes_manual = split(" ", $opt{a});
+}
+
+if ($opt{E}) {
+  @entry_files = split(/\s+/, $opt{E});
+  #print "-E".$opt{E}."\n";
 }
 
 if ($opt{r}) {
@@ -242,11 +249,12 @@ sub file_get_structs {
       # print "file_get_structs: $struct_name from $file seems to be alreay defined in $structs{$struct_name}[2].\n";
     }
   }
+  #print $content."T";
   while ($content =~ m/typedef\s+($ident)\s*($ident)*?;/gs) {
     my $struct_name = $2;
     my $struct_content = $structs{$1}[0];
     # print "** $struct_name **\n";
-    #print $struct_content . "\n";
+    #print "typedef".$struct_content . "\n";
     if (not exists $structs{$struct_name}) {
       # print "$struct_name from $file stored.\n";
       my @triplet = ($struct_content, -1, $file);
@@ -340,21 +348,70 @@ sub file_get_structs {
     }
   }
 
+  print "pass 2 : Building graph dependencies...\n";
+  my $g = GraphViz->new(node => {shape => 'box'}, rankdir => true, width => $width, height => $height);
+
+  foreach my $entry_file (@entry_files) {
+    # first pass : store all included files and get their structs definitons
+    print "pass 1 : Parsing sources...$entry_file\n";
+    file_get_structs($entry_file);
+    if ($includes{$entry_file} >= $include_max_depth) {
+        print "max depth reached. jumping to pass2.\n";
+        goto pass2;
+    }
+
+    %tmp_includes = file_get_includes($entry_file, 0);
+
+    # FIXME : those files are not scanned so we add them manually
+    foreach (@includes_manual) {
+        $tmp_includes{$_} = 0; # depth 0 means we simulate the #include
+        # exist in $entry_file
+    }
+    foreach $file (keys %tmp_includes) {
+        if (not exists $includes{$file}) {
+            # print "pushing $file, \t\tdepth : $tmp_includes{$file}\n";
+            $includes{$file} = $tmp_includes{$file};
+            file_get_structs($file);
+        }
+    }
+
+    @_includes = keys %includes;   # hack to have a loop on a growing hash
+    foreach(@_includes) {          # the problem was : looping with (keys %hash) was using
+        my $cur_file = $_;         # a past snapshot of the keys, not the growing ones
+        # print "cur file : $cur_file\n";
+        # print "*parsing* $cur_file, current depth: $includes{$cur_file}\n";
+        if ($includes{$cur_file} >= $include_max_depth) {
+            print "max depth reached. jumping to pass2.\n";
+            goto pass2;
+        }
+
+        %tmp_includes = file_get_includes($cur_file, $includes{$cur_file});
+        foreach $file (keys %tmp_includes) {
+            # looking if the file is already standing in the global array and with a bigger depth counter
+            if (not exists $includes{$file} || $includes{$file} > $includes{$cur_file}+1) {
+                # print "pushing $file \t\tdepth :\t$tmp_includes{$file}\n";
+                file_get_structs($file);
+                # printf "recensed include files : %d\n", $#includes;
+                $includes{$file} = $tmp_includes{$file};
+                @_includes = keys %includes; # update the array we are looping on
+            }
+        }
+    }
+ }
+
   # second pass : loop over the structs and build the dep graph
   pass2:
   # stats
   print "gathered " . (keys %includes). " include files.\n";
   print "gathered " . (keys %structs) . " structure defintions.\n";
 
-  print "pass 2 : Building graph dependencies...\n";
-  my $g = GraphViz->new(node => {shape => 'box'}, rankdir => true, width => $width, height => $height);
-
   %structs_copy = %structs;
   #print "S".%structs, "SC".%structs_copy;
   while (($k,$v) = each(%structs)) {
     # for structs on the top-level
     #print "$k".$v."\n";
-    if ($structs{$k}[2] eq $entry_file) {	
+    if (($structs{$k}[2] eq $entry_file)
+        || (grep(/$structs{$k}[2]/, @entry_files))) {
       $tmp_depth = 0;
       #print "Building graph for".$k."---\n";
       $ret = build_graph($k); # let's go for a ride	
