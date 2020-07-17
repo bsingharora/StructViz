@@ -39,6 +39,7 @@ my $tmp_depth = 0;
 my $heuristic;
 my @includes_manual;
 my $ident = '\~?_*[a-zA-Z][a-zA-Z0-9_]*';
+my $fontname="times";
 
 tie my %includes, "Tie::IxHash";
 tie my %tmp_includes, "Tie::IxHash";
@@ -69,6 +70,7 @@ usage :
 \t-v viewer (default: ee from Electric Eyes pacakge)
 \t-a filelist (e.g "linux/ip.h linux/if_arp.h")
 \t-E list of entry files, useful for subsystems
+\t-f font name
 For special cases were structs definitions are missing
 
 \texample : $0 -e "linux/netlink.h" -o "netlink.svg" -W 30 -H 30
@@ -79,7 +81,7 @@ exit;
 
 # let's do some options parsing
 %opt=();
-getopts("he:o:W:H:r:i:t:v:a:E:d", \%opt);
+getopts("he:o:W:H:r:i:t:v:a:E:df:", \%opt);
 if (keys %opt == 0 && $#ARGV != -1) { usage(); } # handle unknow option
 usage() if $opt{h};
 
@@ -103,6 +105,10 @@ if ($opt{r}) {
 }
 else {
   $rootinc="/usr/src/linux/include";
+}
+
+if ($opt{f}) {
+    $fontname = $opt{f};
 }
 
 if ($opt{e}) {
@@ -349,6 +355,7 @@ sub file_get_structs {
     }
   }
 
+ pass2:
   print "pass 2 : Building graph dependencies...\n";
   my $g = GraphViz->new(node => {shape => 'box'}, rankdir => true, width => $width, height => $height);
 
@@ -357,8 +364,8 @@ sub file_get_structs {
     print "pass 1 : Parsing sources...$entry_file\n";
     file_get_structs($entry_file);
     if ($includes{$entry_file} >= $include_max_depth) {
-        print "max depth reached. jumping to pass2.\n";
-        goto pass2;
+        print "max depth reached. jumping to pass3.\n";
+        goto pass3;
     }
 
     %tmp_includes = file_get_includes($entry_file, 0);
@@ -382,8 +389,8 @@ sub file_get_structs {
         # print "cur file : $cur_file\n";
         # print "*parsing* $cur_file, current depth: $includes{$cur_file}\n";
         if ($includes{$cur_file} >= $include_max_depth) {
-            print "max depth reached. jumping to pass2.\n";
-            goto pass2;
+            print "max depth reached. jumping to pass3.\n";
+            goto pass3;
         }
 
         %tmp_includes = file_get_includes($cur_file, $includes{$cur_file});
@@ -401,7 +408,7 @@ sub file_get_structs {
  }
 
   # second pass : loop over the structs and build the dep graph
-  pass2:
+  pass3:
   # stats
   print "gathered " . (keys %includes). " include files.\n";
   print "gathered " . (keys %structs) . " structure defintions.\n";
@@ -436,7 +443,7 @@ sub file_get_structs {
       $label =~ s/\n/\\r/g;
       # $label =~ s/({|})//g;
       $total_nodes++;
-      $g->add_node($tmp_edge, label => "$tmp_edge\\l" . $label, width => 2.5, fontname => "Courier");
+      $g->add_node($tmp_edge, label => "$tmp_edge\\l" . $label, width => 2.5, fontname => $fontname);
 
       $structs{$tmp_edge}[1] = 0; # we mark the edge
       # create the sons list
