@@ -436,7 +436,7 @@ sub file_get_structs {
       $label =~ s/\n/\\r/g;
       # $label =~ s/({|})//g;
       $total_nodes++;
-      $g->add_node($tmp_edge, label => "$tmp_edge\\l" . $label, width => 2.5);
+      $g->add_node($tmp_edge, label => "$tmp_edge\\l" . $label, width => 2.5, fontname => "Courier");
 
       $structs{$tmp_edge}[1] = 0; # we mark the edge
       # create the sons list
