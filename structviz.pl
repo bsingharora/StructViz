@@ -55,6 +55,7 @@ usage :
 \t-e entry_file (default: "linux/ip.h")
 \tThe graph will take its roots on the structs of that file
 \t-o outfile (default: "/tmp/graph.svg")
+\t-d output in dot format
 \tthe svg output file
 \t-W width (default: 20)
 \t-H height (default: 20)
@@ -78,7 +79,7 @@ exit;
 
 # let's do some options parsing
 %opt=();
-getopts("he:o:W:H:r:i:t:v:a:E:", \%opt);
+getopts("he:o:W:H:r:i:t:v:a:E:d", \%opt);
 if (keys %opt == 0 && $#ARGV != -1) { usage(); } # handle unknow option
 usage() if $opt{h};
 
@@ -469,8 +470,16 @@ sub file_get_structs {
   print "effective node number : $total_nodes\n";
   print "pass 3 : Displaying graph...\n";
 
-  $g->as_svg($outfile);
-  system("$viewer $outfile");
+  if ($opt{d}) {
+    @output = $g->as_text;
+    open(FH, '>', $outfile);
+    print FH @output;
+    close(FH);
+  } else {
+      $g->as_svg($outfile);
+  }
+  #$g->as_text($outfile);
+  #system("$viewer $outfile");
 
   1;
 
